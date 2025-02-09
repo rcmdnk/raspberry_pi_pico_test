@@ -1,4 +1,5 @@
 from machine import Pin, SPI, I2C
+import framebuf
 import time
 
 LCD_WIDTH = 320
@@ -16,6 +17,82 @@ MOSI = 11
 MISO = 12
 LCD_RST = 13
 LCD_BL = 15
+
+
+class touch_ft6336u:
+    def __init__(
+        self,
+        device_addr=0x38,
+        mode=0,
+        i2c_num=1,
+        i2c_sda=I2C_SDA,
+        i2c_scl=I2C_SDL,
+        irq_pin=I2C_IRQ,
+        rst_pin=I2C_RST,
+        max_touch=5,
+    ):
+        self.bus = I2C(id=i2c_num, scl=Pin(i2c_scl), sda=Pin(i2c_sda), freq=400_000)
+        self.device_addr = device_addr
+        self.int = Pin(irq_pin, Pin.IN, Pin.PULL_UP)
+        self.rst = Pin(rst_pin, Pin.OUT)
+
+        self.max_touch = max_touch
+        self.coordinates = []
+        self.reset()
+        self.read_flag = True
+
+        self.int.irq(handler=self.int_cb, trigger=Pin.IRQ_FALLING)
+
+    def int_cb(self, pin):
+        self.read_touch_data()
+
+    def reset(self):
+        self.rst(1)
+        time.sleep(0.2)
+        self.rst(0)
+        time.sleep(0.2)
+        self.rst(1)
+        time.sleep(0.2)
+
+    def read_bytes(self, reg_addr, length):
+        try:
+            self.bus.writeto(int(self.device_addr), bytes([reg_addr]))
+            rec = self.bus.readfrom(int(self.device_addr), length)
+            return rec
+        except Exception as e:
+            print(f"Error reading bytes: {e}")
+            return None
+
+    def clear(self):
+        self.coordinates = []
+
+    def read_touch_data(self):
+        TOUCH_NUM_REG = 0x02
+        TOUCH_XY_REG = 0x03
+        buf = self.read_bytes(TOUCH_NUM_REG, 1)
+        if buf is not None and buf[0] != 0:
+            point_count = buf[0]
+            start = 0
+            if point_count > self.max_touch:
+                self.clear()
+                start = point_count - self.max_touch
+            elif (overfow := len(self.coordinates) + point_count - self.max_touch) > 0:
+                self.coordinates = self.coordinates[overfow:]
+
+            buf = self.read_bytes(TOUCH_XY_REG, 6 * point_count)
+            if buf is not None:
+                for i in range(start, point_count):
+                    self.coordinates.append(
+                        (
+                            ((buf[(i * 6) + 0] & 0x0F) << 8) + (buf[(i * 6) + 1]),
+                            ((buf[(i * 6) + 2] & 0x0F) << 8) + (buf[(i * 6) + 3]),
+                        )
+                    )
+
+    def get_touch_xy(self):
+        coordinates = self.coordinates
+        self.clear()
+        return coordinates
 
 
 class lcd_st7796:
@@ -233,75 +310,46 @@ class lcd_st7796:
         return x_touch, y_touch
 
     def get_touch_xy(self):
-        coordinates = self.touch.get_touch_xy()
-        if coordinates is None:
-            return None
-        for coord in coordinates:
-            yield self.fix_xy(coord["x"], coord["y"])
+        return [(self.fix_xy(x, y)) for x, y in self.touch.get_touch_xy()]
+
+    def clear_touch(self):
+        self.touch.clear()
 
 
-class touch_ft6336u:
-    def __init__(
-        self,
-        device_addr=0x38,
-        mode=0,
-        i2c_num=1,
-        i2c_sda=I2C_SDA,
-        i2c_scl=I2C_SDL,
-        irq_pin=I2C_IRQ,
-        rst_pin=I2C_RST,
-    ):
-        self.bus = I2C(id=i2c_num, scl=Pin(i2c_scl), sda=Pin(i2c_sda), freq=400_000)
-        self.device_addr = device_addr
-        self.int = Pin(irq_pin, Pin.IN, Pin.PULL_UP)
-        self.rst = Pin(rst_pin, Pin.OUT)
+def hex_to_rgb565(hex_color):
+    if hex_color.startswith("#"):
+        hex_color = hex_color[1:]
 
-        self.point_count = 0
-        self.coordinates = [{"x": 0, "y": 0} for _ in range(1)]
-        self.reset()
-        self.read_flag = True
+    r = int(hex_color[0:2], 16)
+    g = int(hex_color[2:4], 16)
+    b = int(hex_color[4:6], 16)
 
-        self.int.irq(handler=self.int_cb, trigger=Pin.IRQ_FALLING)
+    return ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3)
 
-    def int_cb(self, pin):
-        self.read_touch_data()
 
-    def reset(self):
-        self.rst(1)
-        time.sleep(0.2)
-        self.rst(0)
-        time.sleep(0.2)
-        self.rst(1)
-        time.sleep(0.2)
+def rgb888_to_rgb565(r, g, b):
+    return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
 
-    def read_bytes(self, reg_addr, length):
-        try:
-            self.bus.writeto(int(self.device_addr), bytes([reg_addr]))
-            rec = self.bus.readfrom(int(self.device_addr), length)
-            return rec
-        except Exception as e:
-            print(f"Error reading bytes: {e}")
-            return None
 
-    def read_touch_data(self):
-        TOUCH_NUM_REG = 0x02
-        TOUCH_XY_REG = 0x03
-        buf = self.read_bytes(TOUCH_NUM_REG, 1)
-        if buf is not None and buf[0] != 0:
-            self.point_count = buf[0]
-            buf = self.read_bytes(TOUCH_XY_REG, 6 * self.point_count)
-            if buf is not None:
-                for i in range(self.point_count):
-                    self.coordinates[i]["x"] = ((buf[(i * 6) + 0] & 0x0F) << 8) + (
-                        buf[(i * 6) + 1]
-                    )
-                    self.coordinates[i]["y"] = ((buf[(i * 6) + 2] & 0x0F) << 8) + (
-                        buf[(i * 6) + 3]
-                    )
+def draw_button(lcd, button, bg_color, label="", text_color=0xFFFF):
+    x, y, w, h = button
 
-    def get_touch_xy(self):
-        if self.point_count != 0:
-            self.point_count = 0
-            return self.coordinates
-        else:
-            return None
+    # RGB565 requires 2 bytes per pixel
+    buf = bytearray(w * h * 2)
+    fb = framebuf.FrameBuffer(buf, w, h, framebuf.RGB565)
+    fb.fill(bg_color)
+
+    if label:
+        # built in font is 8x8 pixel
+        text_width = len(label) * 8
+        text_height = 8
+        text_x = (w - text_width) // 2
+        text_y = (h - text_height) // 2
+        fb.text(label, text_x, text_y, text_color)
+
+    # draw
+    lcd.set_windows(x, y, x + w - 1, y + h - 1)
+    lcd.dc(1)
+    lcd.cs(0)
+    lcd.bus.write(buf)
+    lcd.cs(1)
