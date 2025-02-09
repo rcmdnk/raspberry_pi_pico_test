@@ -1,4 +1,4 @@
-from lcd_lib import lcd_st7796, draw_button
+from lcd_lib import lcd_st7796, draw_button, hex_to_rgb565
 import machine
 import time
 
@@ -12,8 +12,8 @@ BUTTON_OFF = (130, 10, 100, 50)
 lcd = lcd_st7796(horizontal=HORIZONTAL, reverse=REVERSE)
 lcd.clear_display()
 
-draw_button(lcd, BUTTON_ON, 0x07E0, "On", 0xFFFF)
-draw_button(lcd, BUTTON_OFF, 0xF800, "Off", 0xFFFF)
+draw_button(lcd, BUTTON_ON, hex_to_rgb565("#E30030"), "On", 0xFFFF)
+draw_button(lcd, BUTTON_OFF, hex_to_rgb565("#00469C"), "Off", 0xFFFF)
 
 led = machine.Pin("LED", machine.Pin.OUT)
 

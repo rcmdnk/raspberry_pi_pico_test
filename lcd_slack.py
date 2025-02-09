@@ -13,7 +13,7 @@ BUTTON = (10, 10, 100, 50)
 lcd = lcd_st7796(horizontal=HORIZONTAL, reverse=REVERSE)
 lcd.clear_display()
 
-draw_button(lcd, BUTTON, hex_to_rgb565('#36C5F0'), "Notify", 0xFFFF)
+draw_button(lcd, BUTTON, hex_to_rgb565("#36C5F0"), "Notify", 0xFFFF)
 
 
 def slack_notify():

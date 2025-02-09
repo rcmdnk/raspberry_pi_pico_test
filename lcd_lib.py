@@ -316,6 +316,11 @@ class lcd_st7796:
         self.touch.clear()
 
 
+def swap_bytes(color):
+    # big endian to little endian
+    return ((color & 0xFF) << 8) | ((color >> 8) & 0xFF)
+
+
 def hex_to_rgb565(hex_color):
     if hex_color.startswith("#"):
         hex_color = hex_color[1:]
@@ -324,11 +329,11 @@ def hex_to_rgb565(hex_color):
     g = int(hex_color[2:4], 16)
     b = int(hex_color[4:6], 16)
 
-    return ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3)
+    return swap_bytes(((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3))
 
 
 def rgb888_to_rgb565(r, g, b):
-    return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
+    return swap_bytes(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3))
 
 
 def draw_button(lcd, button, bg_color, label="", text_color=0xFFFF):
