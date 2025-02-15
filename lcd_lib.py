@@ -319,14 +319,14 @@ class lcd_st7796:
     def clear_touch(self):
         self.touch.clear()
 
-    def draw_text(self, x, y, text, color):
+    def draw_text(self, x, y, text, color, bg_color=0xFFFF):
         """Draw text at the specified position"""
         # Calculate text dimensions
         text_width = len(text) * 8
         text_height = 8
         
-        # Clear the text buffer
-        self.text_fb.fill(0)
+        # Clear the text buffer with specified background color
+        self.text_fb.fill(bg_color)
         
         # Draw text in the buffer
         self.text_fb.text(text, 0, 0, color)
@@ -345,13 +345,13 @@ class lcd_st7796:
         self.bus.write(text_area)
         self.cs(1)
 
-    def draw_centered_text(self, x, y, w, h, text, color):
+    def draw_centered_text(self, x, y, w, h, text, color, bg_color=0xFFFF):
         """Draw text centered in the specified rectangle"""
         text_width = len(text) * 8
         text_height = 8
         text_x = x + (w - text_width) // 2
         text_y = y + (h - text_height) // 2
-        self.draw_text(text_x, text_y, text, color)
+        self.draw_text(text_x, text_y, text, color, bg_color)
 
     def fill_rectangle(self, x, y, w, h, color):
         """Fill a rectangle with the specified color"""
@@ -383,6 +383,13 @@ def hex_to_rgb565(hex_color):
 
 def rgb888_to_rgb565(r, g, b):
     return swap_bytes(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3))
+
+
+def update_button_text(lcd, button_rect, text, text_color, bg_color):
+    """Update only the text part of a button without redrawing the background"""
+    x, y, w, h = button_rect
+    # Draw new text centered in the button without modifying the background
+    lcd.draw_centered_text(x, y, w, h, text, text_color, bg_color)
 
 
 def draw_button(lcd, button, bg_color, label="", text_color=0xFFFF):
