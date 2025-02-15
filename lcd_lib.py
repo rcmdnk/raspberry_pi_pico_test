@@ -271,7 +271,7 @@ class lcd_st7796:
         self.set_windows(x, y, x, y)
         self.dc(1)
         self.cs(0)
-        self.bus.write(bytearray([color >> 8, color & 0x00FF]))
+        self.bus.write(bytearray([color & 0xFF, color >> 8]))
         self.cs(1)
 
     def draw_square(self, x, y, s, color):
@@ -284,11 +284,11 @@ class lcd_st7796:
         self.dc(1)
         self.cs(0)
         for i in range((s + 1) * (s + 1)):
-            self.bus.write(bytearray([color >> 8, color & 0x00FF]))
+            self.bus.write(bytearray([color & 0xFF, color >> 8]))
         self.cs(1)
 
     def lcd_fill(self, color):
-        buffer = bytearray([color >> 8, color & 0x00FF] * self.width)
+        buffer = bytearray([color & 0xFF, color >> 8] * self.width)
         self.set_windows(0, 0, self.width, self.height)
         self.dc(1)
         self.cs(0)
@@ -320,7 +320,15 @@ class lcd_st7796:
         self.touch.clear()
 
     def draw_text(self, x, y, text, color, bg_color=0xFFFF):
-        """Draw text at the specified position"""
+        """Draw text at the specified position
+        
+        Args:
+            x (int): X coordinate
+            y (int): Y coordinate
+            text (str): Text to draw
+            color (int): Text color in RGB565 format
+            bg_color (int): Background color in RGB565 format (default: white)
+        """
         # Calculate text dimensions
         text_width = len(text) * 8
         text_height = 8
@@ -346,7 +354,17 @@ class lcd_st7796:
         self.cs(1)
 
     def draw_centered_text(self, x, y, w, h, text, color, bg_color=0xFFFF):
-        """Draw text centered in the specified rectangle"""
+        """Draw text centered in the specified rectangle
+        
+        Args:
+            x (int): X coordinate of the rectangle
+            y (int): Y coordinate of the rectangle
+            w (int): Width of the rectangle
+            h (int): Height of the rectangle
+            text (str): Text to draw
+            color (int): Text color in RGB565 format
+            bg_color (int): Background color in RGB565 format (default: white)
+        """
         text_width = len(text) * 8
         text_height = 8
         text_x = x + (w - text_width) // 2
@@ -354,12 +372,21 @@ class lcd_st7796:
         self.draw_text(text_x, text_y, text, color, bg_color)
 
     def fill_rectangle(self, x, y, w, h, color):
-        """Fill a rectangle with the specified color"""
+        """Fill a rectangle with the specified color
+        
+        Args:
+            x (int): X coordinate
+            y (int): Y coordinate
+            w (int): Width
+            h (int): Height
+            color (int): Fill color in RGB565 format
+        """
         self.set_windows(x, y, x + w - 1, y + h - 1)
         self.dc(1)
         self.cs(0)
         # Create a buffer for one row
-        buf = bytearray([color >> 8, color & 0xFF] * w)
+        # Note: color is already in RGB565 format, so we need to maintain the byte order
+        buf = bytearray([color & 0xFF, color >> 8] * w)
         # Write the buffer for each row
         for _ in range(h):
             self.bus.write(buf)
@@ -393,26 +420,24 @@ def update_button_text(lcd, button_rect, text, text_color, bg_color):
 
 
 def draw_button(lcd, button, bg_color, label="", text_color=0xFFFF):
+    """Draw a button with text
+    
+    Args:
+        lcd (lcd_st7796): LCD display instance
+        button (tuple): Button dimensions (x, y, w, h)
+        bg_color (int): Button background color in RGB565 format
+        label (str): Button text
+        text_color (int): Text color in RGB565 format (default: white)
+    """
     x, y, w, h = button
 
-    # RGB565 requires 2 bytes per pixel
-    buf = bytearray(w * h * 2)
-    fb = framebuf.FrameBuffer(buf, w, h, framebuf.RGB565)
-    # Fill the entire button with background color
-    fb.fill(bg_color)
+    # First fill the rectangle with background color
+    # Swap bytes for background color to match framebuf format
+    swapped_bg_color = swap_bytes(bg_color)
+    lcd.fill_rectangle(x, y, w, h, swapped_bg_color)
 
+    # Then draw the text if any
     if label:
-        # built in font is 8x8 pixel
-        text_width = len(label) * 8
-        text_height = 8
-        text_x = (w - text_width) // 2
-        text_y = (h - text_height) // 2
-        fb.text(label, text_x, text_y, text_color)
-
-    # draw the entire button at once
-    lcd.set_windows(x, y, x + w - 1, y + h - 1)
-    lcd.dc(1)
-    lcd.cs(0)
-    lcd.bus.write(buf)
-    lcd.cs(1)
-
+        # Swap bytes for text color to match framebuf format
+        swapped_text_color = swap_bytes(text_color)
+        lcd.draw_centered_text(x, y, w, h, label, swapped_text_color, swapped_bg_color)
