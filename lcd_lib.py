@@ -122,16 +122,20 @@ class lcd_st7796:
         self.lcd_init()
 
         self.touch = touch_ft6336u()
+        
+        # Create a larger framebuffer for text rendering (480x32 pixels)
+        self.text_buf = bytearray(480 * 32 * 2)  # 480x32 pixels, 2 bytes per pixel
+        self.text_fb = framebuf.FrameBuffer(self.text_buf, 480, 32, framebuf.RGB565)
 
     def clear_display(
         self, color=0xA33F, init_color0=0x00FF, init_color1=0xF00F, sleep=1
     ):
-        self.lcd_fill(init_color0)
-        time.sleep(sleep)
-        self.lcd_fill(init_color1)
-        time.sleep(sleep)
-        self.lcd_fill(init_color0)
-        time.sleep(sleep)
+        #self.lcd_fill(init_color0)
+        #time.sleep(sleep)
+        #self.lcd_fill(init_color1)
+        #time.sleep(sleep)
+        #self.lcd_fill(init_color0)
+        #time.sleep(sleep)
         self.lcd_fill(color)
 
     def write_cmd(self, cmd):
@@ -315,6 +319,51 @@ class lcd_st7796:
     def clear_touch(self):
         self.touch.clear()
 
+    def draw_text(self, x, y, text, color):
+        """Draw text at the specified position"""
+        # Calculate text dimensions
+        text_width = len(text) * 8
+        text_height = 8
+        
+        # Clear the text buffer
+        self.text_fb.fill(0)
+        
+        # Draw text in the buffer
+        self.text_fb.text(text, 0, 0, color)
+        
+        # Create a smaller buffer for the actual text area
+        text_area = bytearray(text_width * text_height * 2)
+        for row in range(text_height):
+            for col in range(text_width):
+                pixel = self.text_buf[(row * 480 + col) * 2:(row * 480 + col) * 2 + 2]
+                text_area[(row * text_width + col) * 2:(row * text_width + col) * 2 + 2] = pixel
+        
+        # Draw the buffer contents to the screen
+        self.set_windows(x, y, x + text_width - 1, y + text_height - 1)
+        self.dc(1)
+        self.cs(0)
+        self.bus.write(text_area)
+        self.cs(1)
+
+    def draw_centered_text(self, x, y, w, h, text, color):
+        """Draw text centered in the specified rectangle"""
+        text_width = len(text) * 8
+        text_height = 8
+        text_x = x + (w - text_width) // 2
+        text_y = y + (h - text_height) // 2
+        self.draw_text(text_x, text_y, text, color)
+
+    def fill_rectangle(self, x, y, w, h, color):
+        """Fill a rectangle with the specified color"""
+        self.set_windows(x, y, x + w - 1, y + h - 1)
+        self.dc(1)
+        self.cs(0)
+        # Create a buffer for one row
+        buf = bytearray([color >> 8, color & 0xFF] * w)
+        # Write the buffer for each row
+        for _ in range(h):
+            self.bus.write(buf)
+        self.cs(1)
 
 def swap_bytes(color):
     # big endian to little endian
@@ -342,6 +391,7 @@ def draw_button(lcd, button, bg_color, label="", text_color=0xFFFF):
     # RGB565 requires 2 bytes per pixel
     buf = bytearray(w * h * 2)
     fb = framebuf.FrameBuffer(buf, w, h, framebuf.RGB565)
+    # Fill the entire button with background color
     fb.fill(bg_color)
 
     if label:
@@ -352,9 +402,10 @@ def draw_button(lcd, button, bg_color, label="", text_color=0xFFFF):
         text_y = (h - text_height) // 2
         fb.text(label, text_x, text_y, text_color)
 
-    # draw
+    # draw the entire button at once
     lcd.set_windows(x, y, x + w - 1, y + h - 1)
     lcd.dc(1)
     lcd.cs(0)
     lcd.bus.write(buf)
     lcd.cs(1)
+
