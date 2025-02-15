@@ -35,10 +35,10 @@ REFRESH_BUTTON_ACTIVE_COLOR = hex_to_rgb565("#81C784")  # Green color when press
 TEXT_COLOR = hex_to_rgb565("#1565C0")  # Dark blue for text
 WHITE_COLOR = hex_to_rgb565("#FFFFFF")  # White for graph background
 
-# Graph Colors (RGB565 format)
-TEMPERATURE_COLOR = hex_to_rgb565("#0000FF")  # Blue for temperature
-HUMIDITY_COLOR = hex_to_rgb565("#FF0000")    # Red for humidity
-CO2_COLOR = hex_to_rgb565("#00FF00")        # Green for CO2
+# Graph Colors (Material Design inspired, all in RGB565 format)
+TEMPERATURE_COLOR = hex_to_rgb565("#1E88E5")  # Blue 600 - より落ち着いた青
+HUMIDITY_COLOR = hex_to_rgb565("#E53935")    # Red 600 - より落ち着いた赤
+CO2_COLOR = hex_to_rgb565("#43A047")        # Green 600 - より落ち着いた緑
 
 # Button Layout Configuration
 DEVICE_STATUS_Y = 10
@@ -422,12 +422,12 @@ class SwitchBotDisplay:
         self.lcd.fill_rectangle(title_x, title_y, title_w, title_h, METER_BUTTON_COLOR)
         text_x = title_x + (title_w - len(value_text) * 8) // 2  # Center text (8 pixels per character)
         text_y = title_y + (title_h - 8) // 2  # Center text vertically (8 pixels height)
-        self.lcd.draw_text(text_x, text_y, value_text, TEXT_COLOR)
+        self.lcd.draw_text(text_x, text_y, value_text, TEXT_COLOR, BACKGROUND_COLOR)
         
         # Graph area dimensions
         GRAPH_X = 40
         GRAPH_Y = 60
-        GRAPH_WIDTH = SCREEN_WIDTH - 80
+        GRAPH_WIDTH = SCREEN_WIDTH - 120
         GRAPH_HEIGHT = 180
         
         # Draw graph background
@@ -453,7 +453,7 @@ class SwitchBotDisplay:
                 # Draw time label
                 tick_time = time.localtime(latest_time - minutes_ago * 60)
                 time_str = "{:02d}:{:02d}".format(tick_time[3], tick_time[4])
-                self.lcd.draw_text(x - 20, GRAPH_Y + GRAPH_HEIGHT + 5, time_str, TEXT_COLOR)
+                self.lcd.draw_text(x - 20, GRAPH_Y + GRAPH_HEIGHT + 5, time_str, TEXT_COLOR, BACKGROUND_COLOR)
         
         # Get min/max values for scaling
         temps = [data[1] for data in history_data if data[1] is not None]
@@ -514,20 +514,13 @@ class SwitchBotDisplay:
             self.lcd.draw_text(GRAPH_X + 250, legend_y - 3, "CO2", CO2_COLOR, BACKGROUND_COLOR)
         
         # Draw min/max values
-        self.lcd.draw_text(5, GRAPH_Y - 4, f"{temp_max:.1f}", TEMPERATURE_COLOR, BACKGROUND_COLOR)
-        self.lcd.draw_text(5, GRAPH_Y + GRAPH_HEIGHT - 8, f"{temp_min:.1f}", TEMPERATURE_COLOR, BACKGROUND_COLOR)
+        self.lcd.draw_text(5, GRAPH_Y - 4, f"{temp_max:.1f}C", TEMPERATURE_COLOR, BACKGROUND_COLOR)
+        self.lcd.draw_text(5, GRAPH_Y + GRAPH_HEIGHT - 8, f"{temp_min:.1f}C", TEMPERATURE_COLOR, BACKGROUND_COLOR)
         self.lcd.draw_text(GRAPH_X + GRAPH_WIDTH + 5, GRAPH_Y - 4, f"{humid_max:.0f}%", HUMIDITY_COLOR, BACKGROUND_COLOR) 
         self.lcd.draw_text(GRAPH_X + GRAPH_WIDTH + 5, GRAPH_Y + GRAPH_HEIGHT - 8, f"{humid_min:.0f}%", HUMIDITY_COLOR, BACKGROUND_COLOR)
         if co2s:
-            # Draw CO2 scale with more intermediate values
-            co2_step = (co2_max - co2_min) / 4  # Show 5 values including min and max
-            for i in range(5):
-                co2_value = co2_min + i * co2_step
-                y_pos = GRAPH_Y + GRAPH_HEIGHT - int((co2_value - co2_min) * GRAPH_HEIGHT / (co2_max - co2_min))
-                # Draw tick mark
-                self.lcd.fill_rectangle(GRAPH_X + GRAPH_WIDTH, y_pos, 5, 1, HUMIDITY_COLOR)  # Red for CO2
-                # Draw value
-                self.lcd.draw_text(GRAPH_X + GRAPH_WIDTH + 40, y_pos - 4, f"{co2_value:.0f}", HUMIDITY_COLOR, BACKGROUND_COLOR)  # Red for CO2
+            self.lcd.draw_text(GRAPH_X + GRAPH_WIDTH + 5, GRAPH_Y - 16, f"{co2_max:.0f}ppm", CO2_COLOR, BACKGROUND_COLOR) 
+            self.lcd.draw_text(GRAPH_X + GRAPH_WIDTH + 5, GRAPH_Y + GRAPH_HEIGHT - 20, f"{co2_min:.0f}ppm", CO2_COLOR, BACKGROUND_COLOR)
         
         # Draw back button
         draw_button(self.lcd, (10, SCREEN_HEIGHT - 30, 60, 20), REFRESH_BUTTON_COLOR, "Back", TEXT_COLOR)
