@@ -431,13 +431,9 @@ def draw_button(lcd, button, bg_color, label="", text_color=0xFFFF):
     """
     x, y, w, h = button
 
-    # First fill the rectangle with background color
-    # Swap bytes for background color to match framebuf format
-    swapped_bg_color = swap_bytes(bg_color)
-    lcd.fill_rectangle(x, y, w, h, swapped_bg_color)
+    # Fill the rectangle with background color
+    lcd.fill_rectangle(x, y, w, h, bg_color)
 
     # Then draw the text if any
     if label:
-        # Swap bytes for text color to match framebuf format
-        swapped_text_color = swap_bytes(text_color)
-        lcd.draw_centered_text(x, y, w, h, label, swapped_text_color, swapped_bg_color)
+        lcd.draw_centered_text(x, y, w, h, label, text_color, bg_color)
