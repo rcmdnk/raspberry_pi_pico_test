@@ -183,7 +183,6 @@ class SwitchBotDisplay:
         self.need_refresh = True
         self.initialized = False
         self.pseudo_mode = pseudo_mode
-        self.device_list_printed = False  # Add flag for device list printing
         # Initialize LED
         self.led = LED
         self.led.off()  # Ensure LED is off initially
@@ -316,6 +315,10 @@ class SwitchBotDisplay:
             return self.generate_pseudo_data()
             
         try:
+            # Force garbage collection before API call
+            import gc
+            gc.collect()
+            
             headers = get_auth_headers()
             response = requests.get(
                 f"{API_BASE_URL}/devices",
@@ -327,16 +330,6 @@ class SwitchBotDisplay:
             
             if data.get("statusCode") == 100:
                 self.devices = data["body"]["deviceList"]
-                # Only print device list on first call
-                if not self.device_list_printed:
-                    print("Initial device list:")
-                    for d in self.devices:
-                        device_name = d.get('deviceName', '')
-                        device_type = d.get('deviceType', '')
-                        device_id = d.get('deviceId', '')
-                        friendly_name = DEVICE_NAMES.get(device_name, 'NOT_DEFINED')
-                        print(f"- {device_name} (Type: {device_type}), ID: {device_id}, Name: {friendly_name}")
-                    self.device_list_printed = True
                 
                 # Filter devices that contain "Meter" or "WoIOSensor" in their type
                 self.meters = [d for d in self.devices if 
@@ -345,11 +338,8 @@ class SwitchBotDisplay:
                 # Clear devices list to free memory
                 self.devices = []
                 
-                # Only print meter devices on first call
-                if not self.device_list_printed:
-                    print(f"\nFound {len(self.meters)} meter devices:")
-                    for meter in self.meters:
-                        print(f"- {meter.get('deviceName')} (Type: {meter.get('deviceType')})")
+                # Force garbage collection
+                gc.collect()
                 return True
             return False
         except Exception as e:
@@ -357,11 +347,14 @@ class SwitchBotDisplay:
             return False
         finally:
             # Force garbage collection
-            import gc
             gc.collect()
 
     def get_meter_status(self, device_id):
         try:
+            # Force garbage collection before API call
+            import gc
+            gc.collect()
+            
             headers = get_auth_headers()
             response = requests.get(
                 f"{API_BASE_URL}/devices/{device_id}/status",
@@ -372,7 +365,6 @@ class SwitchBotDisplay:
             response.close()
             
             if data.get("statusCode") == 100:
-                print(f"Device status data: {data['body']}")  # Debug print
                 return data["body"]
             return None
         except Exception as e:
@@ -380,7 +372,6 @@ class SwitchBotDisplay:
             return None
         finally:
             # Force garbage collection
-            import gc
             gc.collect()
 
     def control_device(self, device_id, command):
@@ -413,7 +404,7 @@ class SwitchBotDisplay:
         current_time = time.time()
         if current_time - self.last_update < self.update_interval:
             return False
-
+        
         if self.pseudo_mode:
             success = self.generate_pseudo_data()
         else:
@@ -706,7 +697,22 @@ class SwitchBotDisplay:
                             next_y = GRAPH_Y + GRAPH_HEIGHT // 2
                         else:
                             next_y = GRAPH_Y + GRAPH_HEIGHT - int((next_data['temperature'] - temp_min) * GRAPH_HEIGHT / (temp_max - temp_min))
-                        self.lcd.fill_rectangle(min(x, next_x), min(y, next_y), abs(next_x - x), 1, TEMPERATURE_COLOR)
+                        # Draw diagonal line
+                        dx = abs(next_x - x)
+                        dy = abs(next_y - y)
+                        if dx > dy:
+                            steps = dx
+                        else:
+                            steps = dy
+                        if steps > 0:
+                            x_inc = (next_x - x) / steps
+                            y_inc = (next_y - y) / steps
+                            curr_x = x
+                            curr_y = y
+                            for _ in range(int(steps)):
+                                self.lcd.fill_rectangle(int(curr_x), int(curr_y), 2, 2, TEMPERATURE_COLOR)
+                                curr_x += x_inc
+                                curr_y += y_inc
             
             # Humidity
             if data['humidity'] is not None:
@@ -726,7 +732,22 @@ class SwitchBotDisplay:
                             next_y = GRAPH_Y + GRAPH_HEIGHT // 2
                         else:
                             next_y = GRAPH_Y + GRAPH_HEIGHT - int((next_data['humidity'] - humid_min) * GRAPH_HEIGHT / (humid_max - humid_min))
-                        self.lcd.fill_rectangle(min(x, next_x), min(y, next_y), abs(next_x - x), 1, HUMIDITY_COLOR)
+                        # Draw diagonal line
+                        dx = abs(next_x - x)
+                        dy = abs(next_y - y)
+                        if dx > dy:
+                            steps = dx
+                        else:
+                            steps = dy
+                        if steps > 0:
+                            x_inc = (next_x - x) / steps
+                            y_inc = (next_y - y) / steps
+                            curr_x = x
+                            curr_y = y
+                            for _ in range(int(steps)):
+                                self.lcd.fill_rectangle(int(curr_x), int(curr_y), 2, 2, HUMIDITY_COLOR)
+                                curr_x += x_inc
+                                curr_y += y_inc
             
             # CO2
             if data.get('co2') is not None:
@@ -746,7 +767,22 @@ class SwitchBotDisplay:
                             next_y = GRAPH_Y + GRAPH_HEIGHT // 2
                         else:
                             next_y = GRAPH_Y + GRAPH_HEIGHT - int((next_data['co2'] - co2_min) * GRAPH_HEIGHT / (co2_max - co2_min))
-                        self.lcd.fill_rectangle(min(x, next_x), min(y, next_y), abs(next_x - x), 1, CO2_COLOR)
+                        # Draw diagonal line
+                        dx = abs(next_x - x)
+                        dy = abs(next_y - y)
+                        if dx > dy:
+                            steps = dx
+                        else:
+                            steps = dy
+                        if steps > 0:
+                            x_inc = (next_x - x) / steps
+                            y_inc = (next_y - y) / steps
+                            curr_x = x
+                            curr_y = y
+                            for _ in range(int(steps)):
+                                self.lcd.fill_rectangle(int(curr_x), int(curr_y), 2, 2, CO2_COLOR)
+                                curr_x += x_inc
+                                curr_y += y_inc
         
         # Draw legend
         legend_y = GRAPH_Y + GRAPH_HEIGHT + 20
@@ -795,7 +831,7 @@ class SwitchBotDisplay:
                     time.sleep_ms(100)
                     self.lcd.clear_touch()
                     return
-                
+
                 # Check view mode toggle button
                 bx, by, bw, bh = (80, SCREEN_HEIGHT - 30, 60, 20)
                 if (bx <= x < bx + bw) and (by <= y < by + bh):
@@ -842,9 +878,9 @@ class SwitchBotDisplay:
                                     self.current_device_name = device_name
                                     self.current_view_mode = '5min'  # Reset to 5-minute view
                                     self.draw_graph(self.meter_history[device_id], device_name, self.current_view_mode)
-                                    time.sleep_ms(100)
-                                    self.lcd.clear_touch()
-                                    return
+                    time.sleep_ms(100)
+                    self.lcd.clear_touch()
+                    return
                     break
 
     def run(self):
