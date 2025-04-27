@@ -1,10 +1,7 @@
-import machine
-import time
-
-
+import machine, utime
 led = machine.Pin("LED", machine.Pin.OUT)
 
 
 while True:
     led.toggle()
-    time.sleep(1)
+    utime.sleep(0.5)

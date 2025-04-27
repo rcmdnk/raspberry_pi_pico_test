@@ -31,7 +31,12 @@ class touch_ft6336u:
         rst_pin=I2C_RST,
         max_touch=5,
     ):
-        self.bus = I2C(id=i2c_num, scl=Pin(i2c_scl), sda=Pin(i2c_sda), freq=400_000)
+        self.bus = I2C(
+    id=i2c_num,
+    scl=Pin(i2c_scl, Pin.OPEN_DRAIN, Pin.PULL_UP),
+    sda=Pin(i2c_sda, Pin.OPEN_DRAIN, Pin.PULL_UP),
+    freq=400_000
+)
         self.device_addr = device_addr
         self.int = Pin(irq_pin, Pin.IN, Pin.PULL_UP)
         self.rst = Pin(rst_pin, Pin.OUT)
@@ -107,16 +112,20 @@ class lcd_st7796:
             self.width = LCD_WIDTH
             self.height = LCD_HEIGHT
 
-        self.cs = Pin(LCD_CS, Pin.OUT)
+        self.cs = Pin(LCD_CS, Pin.OUT, Pin.PULL_UP)
         self.rst = Pin(LCD_RST, Pin.OUT)
         self.bl = Pin(LCD_BL, Pin.OUT)
         self.bl(1)
         self.cs(1)
-        self.bus = SPI(1)
-        self.bus = SPI(1, 1000_000)
         self.bus = SPI(
-            1, 10000_000, polarity=0, phase=0, sck=Pin(SCK), mosi=Pin(MOSI), miso=MISO
-        )
+    1,
+    1_000_000,
+    polarity=0,
+    phase=0,
+    sck=Pin(SCK),
+    mosi=Pin(MOSI),
+    miso=Pin(MISO, Pin.IN, Pin.PULL_UP)
+)
         self.dc = Pin(LCD_DC, Pin.OUT)
         self.dc(1)
         self.lcd_init()
